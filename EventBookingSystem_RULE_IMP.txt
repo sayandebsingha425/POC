@@ -1,0 +1,54 @@
+Booking Rules:
+------------------
+
+Rule 1: A booking must fail if not enough seats are available.
+-------
+This rule is enforced explicitly within the bookSeats method in the EventService.
+
+How it Works:
+Retrieve Current State: The code first fetches the current state of the event from the database.
+
+
+Event event = eventRepository.findById(eventId)
+        .orElseThrow(() -> new EventNotFoundException("Event with ID " + eventId + " not found."));
+Calculate Available Seats: It then calculates the number of available seats in a variable.
+
+
+int availableSeats = event.getTotalSeats() - event.getBookedSeats();
+Enforce the Rule: The code checks if the number of requested seats is greater than what is available. If it is, the operation stops immediately by throwing a custom NotEnoughSeatsException.
+
+
+if (availableSeats < request.getSeats()) {
+    throw new NotEnoughSeatsException("Not enough seats available. Requested: " + request.getSeats() + ", Available: " + availableSeats);
+}
+This ensures that no booking can proceed if there isn't enough inventory, fulfilling the first requirement. The GlobalExceptionHandler then catches this exception and returns a user-friendly 409 Conflict HTTP status.
+
+Rule 2: Must handle concurrent requests safely (No overbooking).
+-------
+This is the most critical requirement and is handled at the database level using Pessimistic Locking.
+
+How it Works:
+@Transactional Annotation: The entire bookSeats method is annotated with @Transactional. This tells Spring to wrap the method call in a single database transaction. If any part of the method fails, the entire operation is rolled back, ensuring data integrity.
+
+@Lock(LockModeType.PESSIMISTIC_WRITE): This annotation on the EventRepository's findById method is the key to preventing overbooking.
+
+When the eventRepository.findById(eventId) line is executed, the database places a lock on the specific row for that event.
+
+This lock prevents any other transaction from reading or writing to that same event row until the current transaction is finished (either committed or rolled back).
+
+Concurrent Scenario Walkthrough:
+Imagine two users trying to book the last 2 available seats at the exact same time:
+
+User A requests 1 seat.
+
+User B requests 2 seats.
+
+Request A's transaction starts. It calls findById(eventId) and the database locks the event row. The code sees there are 2 seats available, which is enough.
+
+Simultaneously, Request B's transaction starts. It also tries to call findById(eventId), but because the row is already locked by Request A, the database forces Request B to wait.
+
+Request A's transaction continues. It updates the bookedSeats to totalSeats - 1, saves the booking, and commits the transaction. The database lock on the event row is now released.
+
+Now that the lock is gone, Request B's transaction can finally proceed. It reads the event row and sees that there is only 1 seat left.
+
+The check if (availableSeats < request.getSeats()) (is 1 < 2?) now evaluates to true, and the system throws a NotEnoughSeatsException. Request B's transaction is rolled back.
