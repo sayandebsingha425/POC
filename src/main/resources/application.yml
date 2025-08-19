@@ -1,0 +1,19 @@
+spring:
+  # H2 Database Console Configuration
+  h2:
+    console:
+      enabled: true  # Enables the H2 database console in your browser
+      path: /h2-console # Sets the URL path to access the console
+
+  # Datasource Configuration for the In-Memory Database
+  datasource:
+    url: jdbc:h2:mem:eventdb # The JDBC URL for an in-memory database named 'eventdb'
+    driverClassName: org.h2.Driver # The H2 database driver
+    username: sa # Default username for H2
+    password: password # Default password for H2 (can be left blank)
+
+  # JPA/Hibernate Configuration
+  jpa:
+    database-platform: org.hibernate.dialect.H2Dialect # Tells Hibernate to use the H2 SQL dialect
+    hibernate:
+      ddl-auto: update # Automatically updates the database schema based on your entities

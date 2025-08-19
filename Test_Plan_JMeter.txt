@@ -1,0 +1,94 @@
+
+Step 1: Set Up the Test Scenario
+First, let's create a situation where a race condition is likely to occur.
+
+Start your Spring Boot application.
+
+Using Swagger or curl, create a new event with a very small number of available seats. This makes it easy to see the overbooking protection in action.
+
+Endpoint: POST /api/events
+
+Request Body:
+
+JSON
+
+{
+  "name": "Concurrency Test Event",
+  "totalSeats": 3,
+  "startTime": "2025-12-01T10:00:00",
+  "endTime": "2025-12-01T11:00:00"
+}
+Note the id of the event we created (let's assume it's 1).
+
+Step 2: Create a Test Plan in JMeter
+Now, let's configure JMeter to bombard your API with booking requests.
+
+Download and run Apache JMeter.
+
+Add a Thread Group: This defines how many "users" (threads) will send requests.
+
+Right-click on Test Plan -> Add -> Threads (Users) -> Thread Group.
+
+Configure it to send many requests at once:
+
+Number of Threads (users): 10 (This means 10 virtual users).
+
+Ramp-up period (in seconds): 0 (This makes all 10 threads fire at the exact same time).
+
+Loop Count: 1
+
+Add an HTTP Request Sampler: This defines the actual API call.
+
+Right-click on Thread Group -> Add -> Sampler -> HTTP Request.
+
+Configure it to call your "Book Seats" API:
+
+Protocol: http
+
+Server Name or IP: localhost
+
+Port Number: 8080
+
+Method: POST
+
+Path: /api/events/1/book (use the ID of the event you created).
+
+Add the Request Body:
+
+In the same HTTP Request sampler, go to the "Body Data" tab.
+
+Enter the JSON payload to book one seat. Each of the 10 users will try to book one seat.
+
+JSON
+
+{
+  "userId": 1,
+  "seats": 1
+}
+Important: You also need to add an HTTP Header Manager to set the Content-Type.
+
+Right-click on your HTTP Request -> Add -> Config Element -> HTTP Header Manager.
+
+Click "Add" and create a header with the name Content-Type and value application/json.
+
+Add a Listener to See Results:
+
+Right-click on Thread Group -> Add -> Listener -> View Results Tree. This will show you the result of every single request.
+
+Step 3: Run the Test and Analyze the Results
+You are now ready to test!
+
+Save your test plan in JMeter.
+
+Click the green play button to run the test.
+
+Click on the View Results Tree listener. You will see 10 HTTP requests appear almost instantly.
+
+What to Look For (The Expected Outcome)
+This is how you confirm your concurrency logic is working correctly:
+
+Successful Requests: Exactly 3 of the requests will be green and have an HTTP 200 OK status. These are the users who successfully booked the seats. 
+
+Failed Requests: The other 7 requests will be red and have an HTTP 409 Conflict status. The response body for these will contain your error message: "Not enough seats available." 
+
+Check the Database: Go to your H2 console (http://localhost:8080/h2-console). Run SELECT * FROM EVENT WHERE ID = 1;. The BOOKED_SEATS column should be exactly 3. It should never be more than TOTAL_SEATS.
