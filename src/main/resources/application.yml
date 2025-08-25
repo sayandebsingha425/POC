@@ -1,4 +1,10 @@
+server:
+  port: 8081
 spring:
+
+  application:
+    # This is the new name for Eureka registration
+    name: EVENT-SERVICE
   # H2 Database Console Configuration
   h2:
     console:
@@ -17,3 +23,13 @@ spring:
     database-platform: org.hibernate.dialect.H2Dialect # Tells Hibernate to use the H2 SQL dialect
     hibernate:
       ddl-auto: update # Automatically updates the database schema based on your entities
+
+eureka:
+  client:
+    service-url:
+      # This points to our Eureka server.
+      # IMPORTANT: Use your machine's IP if you had issues with 'localhost' before.
+      defaultZone: http://localhost:8761/eureka/
+  instance:
+    # Use the IP address for registration
+    prefer-ip-address: true

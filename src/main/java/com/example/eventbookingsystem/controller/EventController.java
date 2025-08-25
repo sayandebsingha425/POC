@@ -1,9 +1,6 @@
 package com.example.eventbookingsystem.controller;
 
-import com.example.eventbookingsystem.dto.BookSeatsRequest;
-import com.example.eventbookingsystem.dto.BookingResponse;
 import com.example.eventbookingsystem.dto.CreateEventRequest;
-import com.example.eventbookingsystem.entity.Booking;
 import com.example.eventbookingsystem.entity.Event;
 import com.example.eventbookingsystem.service.EventService;
 import jakarta.validation.Valid;
@@ -12,6 +9,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/api")
@@ -34,22 +32,18 @@ public class EventController {
         List<Event> availableEvents = eventService.listAvailableEvents();
         return ResponseEntity.ok(availableEvents);
     }
-
-    @PostMapping("/events/{eventId}/book")
-    public ResponseEntity<BookingResponse> bookSeats(@PathVariable Long eventId, @Valid @RequestBody BookSeatsRequest request) {
-        BookingResponse bookingResponse = eventService.bookSeats(eventId, request);
-        return ResponseEntity.ok(bookingResponse);
+    
+    @PostMapping("/internal/{eventId}/update-seats")
+    public ResponseEntity<Void> updateBookedSeats(@PathVariable Long eventId, @RequestBody Map<String, Integer> payload) {
+        int seats = payload.get("seats");
+        eventService.updateBookedSeats(eventId, seats);
+        return ResponseEntity.ok().build();
+    }
+    
+    @GetMapping("/{eventId}")
+    public ResponseEntity<Event> getEventById(@PathVariable Long eventId) {
+        Event event = eventService.getEventById(eventId);
+        return ResponseEntity.ok(event);
     }
 
-    @GetMapping("/users/{userId}/bookings")
-    public ResponseEntity<List<Booking>> getUserBookings(@PathVariable Long userId) {
-        List<Booking> userBookings = eventService.getUserBookings(userId);
-        return ResponseEntity.ok(userBookings);
-    }
-
-    @DeleteMapping("/bookings/{bookingId}")
-    public ResponseEntity<Void> cancelBooking(@PathVariable Long bookingId) {
-        eventService.cancelBooking(bookingId);
-        return ResponseEntity.noContent().build();
-    }
 }

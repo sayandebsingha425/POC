@@ -1,13 +1,10 @@
 package com.example.eventbookingsystem.service;
 
-import com.example.eventbookingsystem.dto.BookSeatsRequest;
-import com.example.eventbookingsystem.dto.BookingResponse;
+
 import com.example.eventbookingsystem.dto.CreateEventRequest;
-import com.example.eventbookingsystem.entity.Booking;
 import com.example.eventbookingsystem.entity.Event;
 import com.example.eventbookingsystem.exception.EventNotFoundException;
 import com.example.eventbookingsystem.exception.NotEnoughSeatsException;
-import com.example.eventbookingsystem.repository.BookingRepository;
 import com.example.eventbookingsystem.repository.EventRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -19,11 +16,11 @@ import java.util.stream.Collectors;
 public class EventService {
 
     private final EventRepository eventRepository;
-    private final BookingRepository bookingRepository;
+ 
 
-    public EventService(EventRepository eventRepository, BookingRepository bookingRepository) {
+    public EventService(EventRepository eventRepository) {
         this.eventRepository = eventRepository;
-        this.bookingRepository = bookingRepository;
+        
     }
 
     @Transactional
@@ -43,43 +40,28 @@ public class EventService {
                 .collect(Collectors.toList());
     }
 
-    @Transactional
-    public BookingResponse bookSeats(Long eventId, BookSeatsRequest request) {
-        Event event = eventRepository.findById(eventId)
-                .orElseThrow(() -> new EventNotFoundException("Event with ID " + eventId + " not found."));
 
-        int availableSeats = event.getTotalSeats() - event.getBookedSeats();
-        if (availableSeats < request.getSeats()) {
-            throw new NotEnoughSeatsException("Not enough seats available. Requested: " + request.getSeats() + ", Available: " + availableSeats);
+ // In event-service's EventService.java
+
+    @Transactional
+    public void updateBookedSeats(Long eventId, int seatsToBook) {
+        // 1. Find the event and lock the database row
+        Event event = eventRepository.findById(eventId)
+                .orElseThrow(() -> new EventNotFoundException("Event not found with ID: " + eventId));
+
+        // 2. Perform the availability check within the locked transaction
+        if (seatsToBook > 0 && (event.getTotalSeats() - event.getBookedSeats()) < seatsToBook) {
+            // This is the crucial check to prevent overbooking
+            throw new NotEnoughSeatsException("Not enough seats available"); // We need to create this exception
         }
 
-        event.setBookedSeats(event.getBookedSeats() + request.getSeats());
+        // 3. If the check passes, update the seat count
+        event.setBookedSeats(event.getBookedSeats() + seatsToBook);
         eventRepository.save(event);
-
-        Booking booking = new Booking();
-        booking.setEventId(eventId);
-        booking.setUserId(request.getUserId());
-        booking.setSeatsBooked(request.getSeats());
-        Booking savedBooking = bookingRepository.save(booking);
-
-        return new BookingResponse(savedBooking.getId(), event.getName(), event.getTotalSeats() - event.getBookedSeats());
     }
-
-    public List<Booking> getUserBookings(Long userId) {
-        return bookingRepository.findByUserId(userId);
-    }
-
-    @Transactional
-    public void cancelBooking(Long bookingId) {
-        Booking booking = bookingRepository.findById(bookingId)
-            .orElseThrow(() -> new RuntimeException("Booking with ID " + bookingId + " not found"));
-
-        Event event = eventRepository.findById(booking.getEventId())
-            .orElseThrow(() -> new EventNotFoundException("Associated event with ID " + booking.getEventId() + " not found for the booking."));
-
-        event.setBookedSeats(event.getBookedSeats() - booking.getSeatsBooked());
-        eventRepository.save(event);
-
-        bookingRepository.delete(booking);
+    
+    public Event getEventById(Long eventId) {
+        return eventRepository.findById(eventId)
+            .orElseThrow(() -> new EventNotFoundException("Event not found with ID: " + eventId));
     }
 }

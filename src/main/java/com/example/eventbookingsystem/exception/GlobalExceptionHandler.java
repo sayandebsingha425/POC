@@ -14,9 +14,5 @@ public class GlobalExceptionHandler {
     public ResponseEntity<Map<String, String>> handleEventNotFoundException(EventNotFoundException ex) {
         return new ResponseEntity<>(Map.of("error", ex.getMessage()), HttpStatus.NOT_FOUND);
     }
-
-    @ExceptionHandler(NotEnoughSeatsException.class)
-    public ResponseEntity<Map<String, String>> handleNotEnoughSeatsException(NotEnoughSeatsException ex) {
-        return new ResponseEntity<>(Map.of("error", ex.getMessage()), HttpStatus.CONFLICT);
-    }
+    
 }
